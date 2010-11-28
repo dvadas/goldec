@@ -1,0 +1,8 @@
+# Name	BuyCost	Money	Time
+Bronze	1	1	0
+Silver	3	2	0
+Gold	6	3	0
+Second	1	0	1
+Minute	3	0	2
+Hour	6	0	3
+Time and money	4	1	1
