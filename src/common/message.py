@@ -1,5 +1,5 @@
 class MessageTypes(object):
-	LOGIN, NEW_GAME = "Login", "NewGame"
+	LOGIN, LOGIN_REPLY, NEW_GAME = "Login", "LoginReply", "NewGame"
 
 class Message(object):
 	def __init__(self, raw=None):
@@ -23,6 +23,16 @@ class Message(object):
 	def SetType(self, type):
 		self._fields["Type"] = type
 
-	def SetUsername(self, username):
-		self._fields["Username"] = username
+        def GetUsername(self):
+                return self._fields["Username"]
+        def SetUsername(self, username):
+                self._fields["Username"] = username
+
+        def GetSuccess(self):
+                return self._fields["Success"] == "true"
+        def SetSuccess(self, success):
+		if success:
+	                self._fields["Success"] = "true"
+		else:
+	                self._fields["Success"] = "false"
 

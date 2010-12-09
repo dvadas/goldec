@@ -1,4 +1,5 @@
 import sys
+import datetime
 
 _logFile = None
 def LogInit(logFilename):
@@ -9,4 +10,5 @@ def LogInit(logFilename):
 		_logFile = open(logFilename)
 
 def Log(line):
-	_logFile.write(line + "\n")
+	now = datetime.datetime.now()
+        _logFile.write("[%s] %s\n" % (now, line))

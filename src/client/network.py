@@ -1,62 +1,48 @@
-import socket
 import sys
-import select
-from array import array
+
+from twisted.internet import reactor
+from twisted.internet import stdio
+from twisted.internet.protocol import ClientFactory
+from twisted.protocols.basic import LineReceiver
 
 from common.logging import Log
 from common.config import HOST, PORT
+from common.network import MessageProtocol, CallbackFactory
 
-class Connection(object):
-	def __init__(self):
-		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self._socket.connect((HOST, PORT))
-		self._isOpen = True
+class MessageClientFactory(ClientFactory):
+	def __init__(self, callbackFactory):
+		self._callbackFactory = callbackFactory
 
-		self._recvBuffer = array("b")
+	def startedConnecting(self, connector):
+		Log("Connecting to server")
 
-	def Send(self, message):
-		raw = message.GetRaw()
-		self._socket.send(raw + "\n")
+	def buildProtocol(self, addr):
+		connection = MessageProtocol()
+		connection.factory = self._callbackFactory
+		return connection
 
-	def Receive(self):
-		bytesRead = self._socket.recv_into(self._recvBuffer)
-		if bytesRead == 0:
-			Log("Connection closed by server")
-			self._isOpen = False
-			return
+	def clientConnectionLost(self, connector, reason):
+		Log("Lost connection to server. Reason: %s" % reason)
 
-		#while true:
-		#	received = self._socket.recv(1024)
-		#	if len(received) == 0:
-		#		break
-		#	self._recvBuffer += received
+	def clientConnectionFailed(self, connector, reason):
+		Log("Connection failed to server. Reason: %s" % reason)
 
-		index = self._recvBuffer.find("\n")
-		if index == -1:
-			return None
+class UserInputProtocol(LineReceiver):
+	from os import linesep as delimiter
 
-		result = self._recvBuffer[:index]
-		self._recvBuffer = self._recvBuffer[index + 1:]
-		return Message(result)
+	def __init__(self, callback):
+		self._callback = callback
+
+	def connectionMade(self):
+		self.transport.write('>>> ')
+
+	def lineReceived(self, line):
+		self._callback(line)
+		self.transport.write('>>> ')
 	
-	# Block until a message is ready
-	def Wait(self):
-		while True:
-			reads, writes, exceptions = select.select([self._socket, sys.stdin], [], [])
-
-			for readFile in reads:
-				if readFile == self._socket:
-					message = self.Receive()
-					return message, None
-				elif readFile == sys.stdin:
-					line = sys.stdin.readline()
-					line = line.strip()
-
-					return None, line
-
-	def IsClosed(self):
-		return not self._isOpen
-
-	def __del__(self):
-		self._socket.close()
+def RunClient(client):
+	callbackFactory = CallbackFactory(client.Connect, None, client.Receive)
+	reactor.connectTCP(HOST, PORT, MessageClientFactory(callbackFactory))
+	stdio.StandardIO(UserInputProtocol(client.UserInput))
+	reactor.run()
 
