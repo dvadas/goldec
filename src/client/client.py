@@ -1,6 +1,6 @@
 from network import RunClient
 
-from common.message import Message, MessageTypes
+from common.message import Message, MessageTypes, GameTypes
 from common.logging import Log
 
 class Client(object):
@@ -19,6 +19,7 @@ class Client(object):
 	def _SendNewGame(self):
 		message = Message()
 		message.SetType(MessageTypes.NEW_GAME)
+		message.SetGameType(GameTypes.SOLO)
 
 		self._connection.sendMessage(message)
 
@@ -53,4 +54,5 @@ class Client(object):
 		self._gameState = message.GetGameState()
 		self._RenderGameToUser()
 
-
+	def _HandleError(self, message, connection):
+		print "Error:", message.GetErrorText()

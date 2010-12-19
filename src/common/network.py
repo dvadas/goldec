@@ -1,4 +1,4 @@
-from common.message import Message
+from common.message import Message, MessageTypes, InvalidMessageException
 from common.logging import Log
 
 from twisted.internet.protocol import Factory
@@ -17,8 +17,14 @@ class MessageProtocol(LineReceiver):
 	def lineReceived(self, line):
 		Log("Received data: %s" % line)
 		if self.factory.onReceive is not None:
-			message = Message(line)
-			self.factory.onReceive(message, self)
+			try:
+				message = Message(line)
+				self.factory.onReceive(message, self)
+			except InvalidMessageException, e:
+				response = Message()
+				response.SetType(MessageTypes.ERROR)
+				response.SetErrorText(e.errorMessage)
+				self.sendMessage(response)
 
 	def sendMessage(self, message):
 		raw = message.GetRaw()

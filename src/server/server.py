@@ -4,10 +4,20 @@ from common.message import Message, MessageTypes
 from common.logging import Log
 
 from cards import Cards
+from user import User
 import network
 
 class Server(object):
 	def __init__(self, dataDir):
+		# Map a common.network.MessageProtocol to a User
+		self._users = {}
+		# A user requests a new game, then has to wait for another user
+		# to also want a name game
+		self._userWaitingForNewGame = None
+
+		# Map a game id to a Game
+		self._games = {}
+
 		self._LoadData(dataDir)
 
 		network.RunServer(self)
@@ -36,14 +46,41 @@ class Server(object):
 		response.SetSuccess(success == "")
 		if success == "":
 			Log("User %s successfully logged in" % username)
-			#self._users[client] = User(username)
+			user = User(username, client)
+			self._users[client] = user
 		else:
 			Log("User %s failed login: %s" % username, success)
 			response.SetErrorText(success)
 		return response
 
 	def _HandleNewGame(self, message, client):
-		Log("Starting new game")
+		try:
+			user = self._users[client]
+		except KeyError:
+			Log("Client is not logged in")
+			raise InvalidMessageException("You are not logged in.")
+
+		gameType = message.GetGameType()
+		Log("User %s wants a new game with type %s" % (user.GetName(), gameType)) 
+
+		if self._userWaitingForNewGame == None:
+				self._userWaitingForNewGame = user
+				Log("User %s is now waiting for a new game" % user.GetName())
+		else:
+			Log("Starting new game between %s and %s" % (self._userWaitingForNewGame.GetName(), user.GetName()))
+			self._userWaitingForNewGame = None
+
+			game = _StartNewGame(self._userWaitingForNewGame, user)
+			gameId = uuid.uuid1()
+			self._games[gameId] = game
+
+			self._SendGameStateToUsers(game)
+
+	def _SendGameStateToUsers(self, game):
+		for user in game.GetUsers():
+			state = game.GetState(user)
+			response = state.ToMessage()
+			user.GetClient().sendMessage(response)
 
 	# TODO: Add passwords, encryption, etc
 	# Return an error message explaining failure, or empty string on success
